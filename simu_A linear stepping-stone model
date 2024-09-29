@@ -1,0 +1,108 @@
+initialize() {
+	initializeSLiMModelType("nonWF");	//nonWF model
+	initializeTreeSeq();	// for the non admixture, will follow the true ancestry by using treeSeq recording
+	defineConstant("K", 1e4);	// carrying capacity -> pop size limit
+	defineConstant("L", 1e6);	// chromosome length
+	defineConstant("H", 1);	// HGT probability
+	defineConstant("tractlen", 1000);	// average length of the recombination tract
+	
+	initializeMutationType("m1", 1, "f", 0.0);   // neutral (synonymous)
+	
+	initializeGenomicElementType("g1", m1, 1.0);
+	initializeGenomicElement(g1, 0, L - 1);
+	initializeMutationRate(1e-7);//mutation rate
+	initializeRecombinationRate(0);// In SLiM recombination is between sister chromatids
+
+	defineConstant("subpopCount", 10);
+}
+
+mutation(NULL) {
+    mut.tag = 0;
+	return T;
+}
+
+// for the reproduction (bacteria), consider a circular chromosome)
+reproduction(NULL) {
+	nbOffspring = rpois(1, 2); // the number of offspring is drawn from a Poisson distribution whose mean is the fitness of the individual
+	for(i in seqLen(nbOffspring))
+	{
+		if(runif(1) > H) {
+			// no horizontal gene transfer; clonal replication
+			subpop.addRecombinant(individual.genome1, NULL, NULL, NULL, NULL, NULL);
+		}
+		else
+		{
+			// horizontal gene transfer from a randomly chosen individual
+			recsource = subpop.sampleIndividuals(1, exclude = individual).genome1;
+			
+			pos_beg = rdunif(1, max = L-1);
+			//do lengthRec = asInteger(rexp(1, mu = tractlen));
+			//while(lengthRec >= (L-1)); // do not have a recombination tract bigger than the chromosome
+			if(pos_beg+tractlen-1 <= L-1) breaks = c(pos_beg, pos_beg+tractlen-1);
+			else breaks = c(0, tractlen-(L-pos_beg)-1, pos_beg, L-1); // suppose a circular chromosome and thus continue the recombined segment to the beginning
+			
+			subpop.addRecombinant(individual.genome1, recsource, breaks, NULL, NULL, NULL);
+		}
+	}
+}
+
+1 early() {
+    for (i in 1:subpopCount)
+    	sim.addSubpop(i, K, haploid=T);	
+}
+
+//Migration
+1:10000 early() {
+	for (i in 1:9) {
+		inds = sim.subpopulations[i].sampleIndividuals(10, maxAge = 0);
+		inds.uniqueMutations.tag = sim.cycle;
+		sim.subpopulations[i-1].takeMigrants(inds);
+	}
+	for (i in 1:9) {
+		inds = sim.subpopulations[i-1].sampleIndividuals(10, maxAge = 0);
+		inds.uniqueMutations.tag = sim.cycle;
+		sim.subpopulations[i].takeMigrants(inds);
+	}
+}
+
+early() { 
+	sim.recalculateFitness();
+	
+	for(subpop in sim.subpopulations) { // loop on the different subpopulations present in the simulations
+		inds = subpop.individuals;
+		inds[inds.age > 0].fitnessScaling = 0; // non overlapping generation -> get rid of the older individuals
+		inds = inds[inds.age == 0];
+		
+		inds[inds.age == 0].fitnessScaling = K / sum(inds.age == 0);
+	}
+}
+
+late() {
+	sim.recalculateFitness();
+	
+	for(subpop in sim.subpopulations) {
+		// detect fixation/loss of mutations
+		muts = sim.mutations;
+		freqs = sim.mutationFrequencies(subpop, muts);
+		if (any(freqs == 0.5))  {
+			writeFile("IDfixed.txt", paste(c(sim.cycle,subpop.id,muts.id[freqs == 0.5])),append = T);
+			writeFile( "fixed.txt", paste(c(sim.cycle,subpop.id,muts.selectionCoeff[freqs == 0.5])),append = T);
+		}
+		if(sim.cycle % 10000 == 0 & sim.cycle > 9000) {
+			inds = subpop.sampleIndividuals(50).genomes;
+			inds.outputVCF(paste(c("out_vcf/pop", subpop.id, "_", sim.cycle, ".vcf"), sep = ""));
+		}
+	}
+	
+	if(sim.cycle % 1000 == 0) print(sim.cycle);
+}
+
+1e4 late() {
+	sim.treeSeqOutput("population1_10.trees");
+	sim.outputFull("sim_full.txt");
+	
+	for (i in 0:9)
+		sim.subpopulations[i].individuals.genome1.output(paste(c("fullGenome",i+1,"_", sim.cycle, ".txt"), sep = ""));
+	
+	sim.simulationFinished();
+}

@@ -15,22 +15,6 @@ pca$ID<-rownames(pca)
 pve <- data.frame(PC = 1:20, pve = eigenval/sum(eigenval)*100)
 library(ggplot2)
 library(ggsci)
-a <- ggplot(pve, aes(PC, pve)) + geom_bar(stat = "identity") +
-  ylab("Percentage variance explained") + theme_light()+
-  theme( 
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_rect(colour = "black", fill = NA, linewidth = 1),
-    axis.text.x = element_text(size = 14),   # 设置x轴刻度标签的字体大小  
-    axis.text.y = element_text(size = 14),   # 设置y轴刻度标签的字体大小  
-    axis.title.x = element_text(size = 16),  # 设置x轴标题的字体大小（如果需要的话）  
-    axis.title.y = element_text(size = 16),   # 设置y轴标题的字体大小（如果需要的话）
-    plot.title = element_text(size = 20)
-  )+
-  xlab("Principle Component")+
-  ggtitle("Scree Plot")
-
-
 library(grid)
 a <- ggplot(pve, aes(PC, pve)) + geom_bar(stat = "identity") +
   ylab("PVE") + theme_light()+

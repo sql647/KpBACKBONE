@@ -1,0 +1,129 @@
+initialize() {
+	initializeSLiMModelType("nonWF");	//nonWF model
+	//initializeTreeSeq();	// for the non admixture, will follow the true ancestry by using treeSeq recording
+	defineConstant("K", 1e4);	// carrying capacity -> pop size limit
+	defineConstant("L", 5e6);	// chromosome length
+	defineConstant("H", 1);	// HGT probability
+	defineConstant("tractlen", 100000);	// average length of the recombination tract
+	
+	initializeMutationType("m1", 1, "f", 0.0);   // neutral (synonymous)
+	initializeMutationType("m2", 1, "f", 0.0);
+		
+	initializeGenomicElementType("g1", c(m1,m2), c(1, 1));
+	initializeGenomicElement(g1, 0, L - 1);
+	initializeMutationRate(1e-6);//mutation rate
+	initializeRecombinationRate(0);// In SLiM recombination is between sister chromatids
+	
+	defineGlobal("gamma_distribution",rgamma(L, 1, 1/5e6));
+	writeFile("gamma_distribution_effect.txt", paste(gamma_distribution, sep = "\n"));
+}
+
+//mutation(NULL) {
+//	mut.tag = 0;
+//	return T;
+//}
+
+// for the reproduction (bacteria), consider a circular chromosome)
+reproduction(NULL) {
+	nbOffspring = rpois(1, individual.tagF); // the number of offspring is drawn from a Poisson distribution whose mean is the fitness of the individual
+	for(i in seqLen(nbOffspring))
+	{
+		if(runif(1) > H) {
+			// no horizontal gene transfer; clonal replication
+			subpop.addRecombinant(individual.genome1, NULL, NULL, NULL, NULL, NULL);
+		}
+		else
+		{
+			// horizontal gene transfer from a randomly chosen individual
+			recsource = p1.sampleIndividuals(1, exclude = individual).genome1;
+			
+			pos_beg = rdunif(1, max = L-1);
+			pos_end = integerMod(pos_beg + tractlen - 1, L);
+			
+			if (pos_beg > pos_end)
+				breaks = c(0, pos_end, pos_beg);
+			else
+				breaks = c(pos_beg, pos_end);
+			
+			subpop.addRecombinant(individual.genome1, recsource, breaks, NULL, NULL, NULL);
+		}
+	}
+}
+
+1 early() {
+    sim.addSubpop("p1", K ,haploid=T);	//initial population size
+}
+
+early() { 
+	sim.recalculateFitness();
+	inds = p1.individuals;
+	inds[inds.age > 0].fitnessScaling = 0;
+	inds = inds[inds.age == 0];
+	
+	m1_values = rep(0.0, length(inds));
+	for (i in 0:(length(inds)-1)){
+		individual = inds[i];
+		mutations = individual.genomes.mutations;
+		m1_mutations = mutations[mutations.mutationType == m1];
+		positions = m1_mutations.position;
+		m1_values[i] = sum(gamma_distribution[positions]);
+	}
+	
+	m2_values = rep(0.0, length(inds));
+	for (i in 0:(length(inds)-1)){
+		individual = inds[i];
+		mutations = individual.genomes.mutations;
+		m2_mutations = mutations[mutations.mutationType == m2];
+		positions = m2_mutations.position;
+		m2_values[i] = sum(gamma_distribution[positions]);
+	}
+	
+	count_s = m1_values - m2_values;
+	sorted_indices = order(count_s);
+	c1 = sorted_indices[0:599];
+	c2 = sorted_indices[(length(sorted_indices)-600):(length(sorted_indices)-1)];
+	c3 = sample(c1,300);
+	c4 = sample(c2,300);
+	
+	new_tagF = rep(2, length(inds));
+	new_tagF[c3] = 3;
+	new_tagF[c4] = 3;
+	
+	for (i in 1:length(inds)) {
+		inds[i-1].tagF = new_tagF[i-1];
+	}
+	
+	inds[inds.age == 0].fitnessScaling = K / sum(inds.age == 0);
+	
+	if(sim.cycle % 10000 == 0 & sim.cycle > 9000){
+		writeFile(paste("score_m1m2/score_g",sim.cycle,".txt",sep=""),paste(paste("scores_G",sim.cycle,sep=""),count_s,sep="\n"));	
+		//writeFile(paste("score_m1m2/text",".txt",sep=""),paste(sim.cycle,count_s,sep="\n"));
+	}
+}
+
+late() {
+	sim.recalculateFitness();
+
+	muts = sim.mutations;
+	freqs = sim.mutationFrequencies(p1, muts);
+	
+	//if (any(freqs == 0.5))  {
+		//writeFile("IDfixed.txt", paste(c(sim.cycle,"p1",muts.id[freqs == 0.5])),append = T);
+		//writeFile( "fixed.txt", paste(c(sim.cycle,"p1",muts.selectionCoeff[freqs == 0.5])),append = T);
+	//}
+	if(sim.cycle % 10000 == 0 & sim.cycle > 9000) {
+		inds = p1.sampleIndividuals(500).genomes;
+		inds.outputVCF(paste(c("out_vcf/pop1" , "_" , sim.cycle , ".vcf") , sep = ""));
+	}
+	
+	if(sim.cycle % 100 == 0) print(sim.cycle);
+}
+
+10000 late() {
+	//sim.treeSeqOutput("population1.trees");
+	//sim.outputFull("sim_full.txt");
+	
+	//p1.individuals.genome1.output(paste(c("fullGenome1_", sim.cycle, ".txt"), sep = ""));
+	
+	sim.simulationFinished();
+}

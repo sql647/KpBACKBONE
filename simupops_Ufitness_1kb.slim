@@ -1,0 +1,96 @@
+initialize() {
+	initializeSLiMModelType("nonWF");	//nonWF model
+	defineConstant("K", 1e4);	// carrying capacity -> pop size limit
+	defineConstant("L", 1e6);	// chromosome length
+	defineConstant("tractlen", 1000);	// average length of the recombination tract
+	defineConstant("k", 5);
+	
+	initializeMutationType("m1", 1, "f", 0.0);   // neutral (synonymous)
+	initializeMutationType("m2", 1, "f", 0.0);
+		
+	initializeGenomicElementType("g1", c(m1,m2), c(1, 1));
+	initializeGenomicElement(g1, 0, L - 1);
+	initializeMutationRate(1e-6);//mutation rate
+	initializeRecombinationRate(0);// In SLiM recombination is between sister chromatids
+}
+
+// for the reproduction (bacteria), consider a circular chromosome)
+reproduction(NULL) {
+	nbOffspring = rpois(1, individual.tagF); // the number of offspring is drawn from a Poisson distribution whose mean is the fitness of the individual
+	for(i in seqLen(nbOffspring))
+	{
+		recsource = p1.sampleIndividuals(1, exclude = individual).genome1;
+			
+		pos_beg = rdunif(1, max = L-1);
+		pos_end = integerMod(pos_beg + tractlen, L-1);
+			
+		if (pos_beg > pos_end)
+			breaks = c(0, pos_end, pos_beg);
+		else
+			breaks = c(pos_beg, pos_end);
+			
+		subpop.addRecombinant(individual.genome1, recsource, breaks, NULL, NULL, NULL);
+	}
+}
+
+1 early() {
+    sim.addSubpop("p1", K ,haploid=T);	//initial population size
+    
+    inds = p1.individuals;
+	inds[inds.age > 0].fitnessScaling = 0.0;
+	inds = inds[inds.age == 0];
+	
+	new_tagF = rep(2.0, length(inds));
+	inds.tagF = new_tagF;
+	inds[inds.age == 0].fitnessScaling = K / sum(inds.age == 0);
+}
+
+2:5000 early() {
+	inds = p1.individuals;
+	inds[inds.age > 0].fitnessScaling = 0.0;
+	inds = inds[inds.age == 0];
+	
+	new_tagF = rep(2.0, length(inds));
+	inds.tagF = new_tagF;
+	inds[inds.age == 0].fitnessScaling = K / sum(inds.age == 0);
+}
+
+5001:10000 early() { 
+	inds = p1.individuals;
+	inds[inds.age > 0].fitnessScaling = 0;
+	inds = inds[inds.age == 0];
+	
+	m1_counts = inds.countOfMutationsOfType(m1);
+	m2_counts = inds.countOfMutationsOfType(m2);
+	
+	count_s = m1_counts - m2_counts;
+	
+	mu = mean(count_s);
+	dev = abs(count_s - mu);
+	dev_powered = dev^k;
+	max_dev = max(dev_powered) + 1e-6; 
+	norm_dev = dev_powered / max_dev;
+	new_tagF = 2.0 + 1.0 * norm_dev;
+	
+	inds.tagF = new_tagF;
+	
+	inds[inds.age == 0].fitnessScaling = K / sum(inds.age == 0);
+	
+	if(sim.cycle % 10000 == 0 & sim.cycle > 9000){
+		writeFile(paste("score_m1m2/score_g",sim.cycle,".txt",sep=""),paste(paste("scores_G",sim.cycle,sep=""),count_s,sep="\n"));	
+		writeFile(paste("score_m1m2/fitness",sim.cycle,".txt",sep=""),paste("fitness",new_tagF,sep="\n"));	
+	}
+}
+
+late() {
+	if(sim.cycle % 10000 == 0 & sim.cycle > 9000) {
+		inds = p1.sampleIndividuals(500).genomes;
+		inds.outputVCF(paste(c("out_vcf/pop1" , "_" , sim.cycle , ".vcf") , sep = ""));
+	}
+	
+	if(sim.cycle % 1 == 0) print(sim.cycle);
+}
+
+10000 late() {
+	sim.simulationFinished();
+}

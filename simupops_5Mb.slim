@@ -1,0 +1,120 @@
+initialize() {
+	initializeSLiMModelType("nonWF");	//nonWF model
+	defineConstant("K", 1e4);	// carrying capacity 
+	defineConstant("L", 5e6);	// chromosome length
+	defineConstant("tractlen1", 20000);	//  recombination tract = 20kb
+	defineConstant("k", 10);	
+	
+	initializeMutationType("m1", 1, "f", 0.0);   // neutral (synonymous)
+	initializeMutationType("m2", 1, "f", 0.0);
+	
+	initializeGenomicElementType("g1", c(m1,m2), c(1, 1));
+	initializeGenomicElement(g1, 0, L - 1);
+	initializeMutationRate(1e-6);//mutation rate
+	initializeRecombinationRate(0);// In SLiM recombination is between sister chromatids
+	
+	defineGlobal("gamma_distribution",rgamma(L, 1, 1/5e6));
+	writeFile("gamma_distribution_effect.txt", paste(gamma_distribution, sep = "\n"));
+}
+
+// for the reproduction (bacteria), consider a Linear chromosome)
+reproduction(NULL) {
+	nbOffspring = rpois(1, individual.tagF);
+
+	for (i in seqLen(nbOffspring)) {
+		HGTsource = p1.sampleIndividuals(1, exclude = individual).genome1;
+
+		valid = F;
+
+		while (!valid) {
+			picked = rdunif(5, max = L - 1);
+
+			start1 = picked[0]; end1 = start1 + tractlen1;
+			start2 = picked[1]; end2 = start2 + tractlen1;
+			start3 = picked[2]; end3 = start3 + tractlen1;
+			start4 = picked[3]; end4 = start4 + tractlen1;
+			start5 = picked[4]; end5 = start5 + tractlen1;
+
+			breaks = c(start1, end1, start2, end2, start3, end3, start4, end4, start5, end5);
+			breaks = sort(breaks);
+			
+			valid = T;
+			for (j in seq(0, 8, by=2)) {
+				if (breaks[j + 1] - breaks[j] != tractlen1) {
+					valid = F;
+					break;
+				}
+			}
+		}
+		if (breaks[9]>L-1){
+			//print(breaks[19]);
+			p=integerMod(breaks[9], L-1);
+			breaks = c(0, p,breaks[0:8]);
+			}
+		//print(breaks);
+		subpop.addRecombinant(individual.genome1, HGTsource, breaks, NULL, NULL, NULL);
+	}
+}
+
+1 early() {
+	sim.addSubpop("p1", K ,haploid=T);	//initial population size
+	
+	inds = p1.individuals;
+	inds[inds.age > 0].fitnessScaling = 0.0;
+	inds = inds[inds.age == 0];
+	
+	new_tagF = rep(2.0, length(inds));
+	inds.tagF = new_tagF;
+	inds[inds.age == 0].fitnessScaling = K / sum(inds.age == 0);   
+}
+
+2:5000 early() {
+	inds = p1.individuals;
+	inds[inds.age > 0].fitnessScaling = 0.0;
+	inds = inds[inds.age == 0];
+	
+	new_tagF = rep(2.0, length(inds));
+	inds.tagF = new_tagF;
+	inds[inds.age == 0].fitnessScaling = K / sum(inds.age == 0);
+}
+
+5001:10000 early() { 
+	//sim.recalculateFitness();
+	inds = p1.individuals;
+	inds[inds.age > 0].fitnessScaling = 0.0;
+	inds = inds[inds.age == 0];
+	
+	m1_values = sapply(inds, "sum(gamma_distribution[applyValue.genomes.mutations[applyValue.genomes.mutations.mutationType == m1].position]);");
+	m2_values = sapply(inds, "sum(gamma_distribution[applyValue.genomes.mutations[applyValue.genomes.mutations.mutationType == m2].position]);");
+	
+	count_s = m1_values - m2_values;
+	
+	mu = mean(count_s);
+	dev = abs(count_s - mu);
+	dev_powered = dev^k;
+	max_dev = max(dev_powered) + 1e-6; 
+	norm_dev = dev_powered / max_dev;
+	new_tagF = 2.0 + 0.5 * norm_dev;
+	
+	inds.tagF = new_tagF;
+	
+	inds[inds.age == 0].fitnessScaling = K / sum(inds.age == 0);
+	
+	if(sim.cycle % 10000 == 0 & sim.cycle > 9000){
+		writeFile(paste("score_m1m2/score_g",sim.cycle,".txt",sep=""),paste(paste("scores_G",sim.cycle,sep=""),count_s,sep="\n"));	
+		writeFile(paste("score_m1m2/fitness",sim.cycle,".txt",sep=""),paste("fitness",new_tagF,sep="\n"));	
+	}
+}
+
+late() {
+	if(sim.cycle % 10000 == 0 & sim.cycle > 9000) {
+		inds = p1.sampleIndividuals(500).genomes;
+		inds.outputVCF(paste(c("out_vcf/pop1" , "_" , sim.cycle , ".vcf") , sep = ""));
+	}
+	
+	if(sim.cycle % 1 == 0) print(sim.cycle);
+}
+
+10000 late() {
+	sim.simulationFinished();
+}

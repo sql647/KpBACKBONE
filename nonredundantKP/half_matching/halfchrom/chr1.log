@@ -1,0 +1,14 @@
+
+VCFtools - 0.1.16
+(C) Adam Auton and Anthony Marcketta 2009
+
+Parameters as interpreted:
+	--vcf chrsmaf002.recode.vcf
+	--out chr1
+	--positions chr1.txt
+	--recode
+
+After filtering, kept 369 out of 369 Individuals
+Outputting VCF file...
+After filtering, kept 51113 out of a possible 102226 Sites
+Run Time = 6.00 seconds

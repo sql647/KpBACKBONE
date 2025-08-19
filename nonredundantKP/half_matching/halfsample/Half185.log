@@ -1,0 +1,15 @@
+
+VCFtools - 0.1.16
+(C) Adam Auton and Anthony Marcketta 2009
+
+Parameters as interpreted:
+	--vcf chrsmaf002.recode.vcf
+	--keep Half185.list
+	--out Half185
+	--recode
+
+Keeping individuals in 'keep' list
+After filtering, kept 180 out of 369 Individuals
+Outputting VCF file...
+After filtering, kept 102226 out of a possible 102226 Sites
+Run Time = 10.00 seconds

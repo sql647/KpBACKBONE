@@ -1,0 +1,30 @@
+PLINK v1.90b6.21 64-bit (19 Oct 2020)
+Options in effect:
+  --double-id
+  --extract NR369pruned.prune.in
+  --out highlocipca
+  --pca
+  --vcf highloci.recode.vcf
+
+Hostname: admin
+Working directory: /data/liusq/KP_PCA/paper/PCA/halfloci
+Start time: Tue May  7 11:12:43 2024
+
+Random number seed: 1715051563
+1031449 MB RAM detected; reserving 515724 MB for main workspace.
+--vcf: highlocipca-temporary.bed + highlocipca-temporary.bim +
+highlocipca-temporary.fam written.
+32128 variants loaded from .bim file.
+369 people (0 males, 0 females, 369 ambiguous) loaded from .fam.
+Ambiguous sex IDs written to highlocipca.nosex .
+--extract: 9982 variants remaining.
+Using up to 95 threads (change this with --threads).
+Before main variant filters, 369 founders and 0 nonfounders present.
+Calculating allele frequencies... done.
+Total genotyping rate is 0.995842.
+9982 variants and 369 people pass filters and QC.
+Note: No phenotypes present.
+Relationship matrix calculation complete.
+--pca: Results saved to highlocipca.eigenval and highlocipca.eigenvec .
+
+End time: Tue May  7 11:12:43 2024

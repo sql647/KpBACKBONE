@@ -1,0 +1,91 @@
+initialize() {
+	initializeSLiMModelType("nonWF");	//nonWF model
+	initializeTreeSeq();	// for the non admixture, will follow the true ancestry by using treeSeq recording
+	defineConstant("K", 2e3);	// carrying capacity -> pop size limit
+	defineConstant("L", 1e6);	// chromosome length
+	defineConstant("H", 1);	// HGT probability
+	defineConstant("tractlen", 100);	// average length of the recombination tract
+	
+	initializeMutationType("m1", 1, "f", 0.0);   // neutral (synonymous)
+	initializeMutationType("m2", 1, "f", 0.0);
+	
+	initializeGenomicElementType("g1", c(m1,m2), c(1, 1));
+	initializeGenomicElement(g1, 0, L - 1);
+	initializeMutationRate(1e-6);//mutation rate
+	initializeRecombinationRate(0);// In SLiM recombination is between sister chromatids
+}
+
+//mutation(NULL) {
+//	mut.tag = 0;
+//	return T;
+//}
+
+// for the reproduction (bacteria), consider a circular chromosome)
+reproduction(NULL) {
+	nbOffspring = rpois(1, 2); // the number of offspring is drawn from a Poisson distribution whose mean is the fitness of the individual
+	for(i in seqLen(nbOffspring))
+	{
+		if(runif(1) > H) {
+			// no horizontal gene transfer; clonal replication
+			subpop.addRecombinant(individual.genome1, NULL, NULL, NULL, NULL, NULL);
+		}
+		else
+		{
+			// horizontal gene transfer from a randomly chosen individual
+			recsource = p1.sampleIndividuals(1, exclude = individual).genome1;
+			
+			pos_beg = rdunif(1, max = L-1);
+			pos_end = integerMod(pos_beg + tractlen - 1, L);
+			
+			// HGT from breaks[0] forward to breaks[1] on a circular chromosome
+			if (pos_beg > pos_end)
+				breaks = c(0, pos_end, pos_beg);
+			else
+				breaks = c(pos_beg, pos_end);
+				
+			
+			subpop.addRecombinant(individual.genome1, recsource, breaks, NULL, NULL, NULL);
+		}
+	}
+}
+
+1 early() {
+    sim.addSubpop("p1", K ,haploid=T);	//initial population size
+}
+
+early() { 
+	sim.recalculateFitness();
+	
+	inds = p1.individuals;
+	inds[inds.age > 0].fitnessScaling = 0.0;
+	inds = inds[inds.age == 0];
+	
+	inds[inds.age == 0].fitnessScaling = K / sum(inds.age == 0);
+}
+
+late() {
+	sim.recalculateFitness();
+
+	muts = sim.mutations;
+	freqs = sim.mutationFrequencies(p1, muts);
+	
+//	if (any(freqs == 0.5))  {
+//		writeFile("IDfixed.txt", paste(c(sim.cycle,"p1",muts.id[freqs == 0.5])),append = T);
+//		writeFile( "fixed.txt", paste(c(sim.cycle,"p1",muts.selectionCoeff[freqs == 0.5])),append = T);
+//	}
+	if(sim.cycle % 5000 ==0) {
+		inds = p1.sampleIndividuals(500).genomes;
+		inds.outputVCF(paste(c("out_vcf/pop1" , "_" , sim.cycle , ".vcf") , sep = ""));
+	}
+	
+	if(sim.cycle % 1 == 0) print(sim.cycle);
+}
+
+2e4 late() {
+	sim.treeSeqOutput("population1.trees");
+	//sim.outputFull("sim_full.txt");
+	
+	//p1.individuals.genome1.output(paste(c("fullGenome1_", sim.cycle, ".txt"), sep = ""));
+	
+	sim.simulationFinished();
+}

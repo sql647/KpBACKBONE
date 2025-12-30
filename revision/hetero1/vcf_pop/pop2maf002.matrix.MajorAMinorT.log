@@ -1,0 +1,20 @@
+*****************************************************
+Haploview 4.2	Java Version: 11.0.13
+*****************************************************
+
+
+Arguments:	-n	-info	pop2maf002.matrix.MajorAMinorT.info	-pedfile	pop2maf002.matrix.MajorAMinorT.ped	-maxdistance	30	-dprime	-minGeno	0.6	-minMAF	0	-hwcutoff	0	-log	pop2maf002.matrix.MajorAMinorT.log	
+
+
+Max LD comparison distance = 30kb
+Minimum MAF = 0.0
+Minimum SNP genotype % = 0.6
+Hardy Weinberg equilibrium p-value cutoff = 0.0
+Using data file: pop2maf002.matrix.MajorAMinorT.ped
+Using marker information file: pop2maf002.matrix.MajorAMinorT.info
+30301 out of 30301 markers passed the MAF threshold.
+30301 out of 30301 markers passed the Mendel threshold.
+30301 out of 30301 markers passed the genotyping threshold.
+30301 out of 30301 markers passed the Hardy Weinberg threshold.
+30301 out of 30301 markers passed all thresholds.
+Writing output to pop2maf002.matrix.MajorAMinorT.ped.LD

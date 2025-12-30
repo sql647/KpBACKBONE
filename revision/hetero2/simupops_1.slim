@@ -1,0 +1,67 @@
+initialize() {
+	initializeSLiMModelType("nonWF");	//nonWF model
+	defineConstant("K", 1e4);	// carrying capacity -> pop size limit
+	defineConstant("L", 1e6);	// chromosome length
+	defineConstant("tractlen", 20000);	// average length of the recombination tract
+	defineConstant("k", 5);
+	
+	initializeMutationType("m1", 1, "f", 0.0);   // neutral (synonymous)
+	initializeMutationType("m2", 1, "f", 0.0);
+		
+	initializeGenomicElementType("g1", c(m1,m2), c(1, 1));
+	initializeChromosome(1, L, type="H");
+	initializeGenomicElement(g1);
+	initializeMutationRate(1e-6);//mutation rate
+	initializeRecombinationRate(0);// In SLiM recombination is between sister chromatids
+}
+
+// for the reproduction (bacteria), consider a circular chromosome)
+reproduction(NULL) {
+	nbOffspring = rpois(1, 2); // the number of offspring is drawn from a Poisson distribution whose mean is the fitness of the individual
+	for(i in seqLen(nbOffspring))
+	{
+		recsource = p1.sampleIndividuals(1, exclude = individual).haplosomes;
+		
+		if(runif(1) > 0.8) {
+			pos_beg = rdunif(1, max = L-1);
+		}else {
+			pos_beg = asInteger(sample(c(250000, 500000, 750000), 1));
+		}
+			
+		pos_end = integerMod(pos_beg + tractlen, L-1);
+			
+		if (pos_beg > pos_end)
+			breaks = c(0, pos_end, pos_beg);
+		else
+			breaks = c(pos_beg, pos_end);
+			
+		subpop.addRecombinant(individual.haplosomes, recsource, breaks, NULL, NULL, NULL,randomizeStrands=F);
+	}
+}
+
+1 early() {
+	sim.addSubpop("p1", K);	//initial population size
+}
+
+early() {
+	inds = p1.individuals;
+	inds[inds.age > 0].fitnessScaling = 0.0;
+	inds = inds[inds.age == 0];
+	
+	new_tagF = rep(2.0, length(inds));
+	inds.tagF = new_tagF;
+	inds[inds.age == 0].fitnessScaling = K / sum(inds.age == 0);
+}
+
+late() {
+	if(sim.cycle % 10000 == 0 & sim.cycle > 9000) {
+		inds = p1.sampleIndividuals(500).haplosomes;
+		inds.outputHaplosomesToVCF(paste(c("out_vcf/pop1" , "_" , sim.cycle , ".vcf") , sep = ""));
+	}
+	
+	if(sim.cycle % 1 == 0) print(sim.cycle);
+}
+
+10000 late() {
+	sim.simulationFinished();
+}

@@ -1,0 +1,87 @@
+initialize() {
+	initializeSLiMModelType("nonWF");	//nonWF model
+	
+	defineConstant("K", 5e3); // carrying capacity -> pop size limit
+	
+	defineConstant("L", 1e6);	// chromosome length
+	defineConstant("tractlen", 20000);	// average length of the recombination tract(20kb)
+	
+	initializeMutationType("m1", 1, "f", 0.0);   // neutral (synonymous)
+	initializeMutationType("m2", 1, "f", 0.0);
+	
+	initializeGenomicElementType("g1", c(m1,m2), c(1, 1));
+	initializeChromosome(1, L, type="H");
+	initializeGenomicElement(g1);
+	
+	initializeMutationRate(1e-6);//mutation rate
+	initializeRecombinationRate(0);// In SLiM recombination is between sister chromatids
+}
+
+mutation(m1,p1) {
+    // p1 mutation rate = 0
+	return F;
+}
+mutation(m2,p1) {
+    // p1 mutation rate = 0
+    return F;
+}
+
+1 early() {
+	sim.addSubpop("p1", K);	//initial population size
+	sim.addSubpop("p2", K);
+}
+
+// for the reproduction (bacteria), consider a circular chromosome)
+reproduction(NULL) {
+	nbOffspring = rpois(1, 2); // the number of offspring is drawn from a Poisson distribution whose mean is the fitness of the individual
+	for(i in seqLen(nbOffspring))
+	{
+		if (runif(1) < 0.5) {
+            if (subpop == p1)
+                donor = p1.sampleIndividuals(1, exclude=individual);
+            else
+                donor = p1.sampleIndividuals(1);
+        } else {
+            if (subpop == p2)
+                donor = p2.sampleIndividuals(1, exclude=individual);
+            else
+                donor = p2.sampleIndividuals(1);
+        }
+		HGTsource = donor.haplosomes;
+		pos_beg = rdunif(1, max = L-1);
+		pos_end = integerMod(pos_beg + tractlen, L-1);
+			
+		if (pos_beg > pos_end)
+			breaks = c(0, pos_end, pos_beg);
+		else
+			breaks = c(pos_beg, pos_end);
+			
+		subpop.addRecombinant(individual.haplosomes, HGTsource, breaks, NULL, NULL, NULL, randomizeStrands=F);
+	}
+}
+
+early() {
+	sim.recalculateFitness();
+        
+	for(subpop in sim.subpopulations) {
+		inds = subpop.individuals;
+		inds[inds.age>0].fitnessScaling=0.0;
+		inds=inds[inds.age==0];
+		inds[inds.age==0].fitnessScaling=K/sum(inds.age==0);
+	}
+}
+
+late() {
+	if(sim.cycle % 10000 == 0 & sim.cycle > 9000) {
+		inds1 = p1.sampleIndividuals(250).haplosomes;
+		inds1.outputHaplosomesToVCF(paste(c("out_vcf/pop1" , "_" , sim.cycle , ".vcf") , sep = ""));
+		inds2 = p2.sampleIndividuals(250).haplosomes;
+		inds2.outputHaplosomesToVCF(paste(c("out_vcf/pop2" , "_" , sim.cycle , ".vcf") , sep = ""));
+	}
+	
+	if(sim.cycle % 1 == 0) print(sim.cycle);
+}
+
+10000 late() {
+	sim.simulationFinished();
+}

@@ -1,0 +1,14 @@
+
+VCFtools - 0.1.17
+(C) Adam Auton and Anthony Marcketta 2009
+
+Parameters as interpreted:
+	--vcf ../out_vcf/pop1_10000.vcf
+	--maf 0.02
+	--out pop1maf002
+	--recode
+
+After filtering, kept 500 out of 500 Individuals
+Outputting VCF file...
+After filtering, kept 58289 out of a possible 117225 Sites
+Run Time = 6.00 seconds

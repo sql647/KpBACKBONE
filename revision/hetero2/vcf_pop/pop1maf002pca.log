@@ -1,0 +1,28 @@
+PLINK v1.9.0-b.8 64-bit (22 Oct 2024)
+Options in effect:
+  --double-id
+  --out pop1maf002pca
+  --pca
+  --vcf pop1maf002.recode.vcf
+
+Hostname: Mac.lan
+Working directory: /Users/47liu/Documents/plosbiology/simu1/hetero2/vcf_pop
+Start time: Mon Oct 27 14:33:26 2025
+
+Random number seed: 1761572006
+16384 MB RAM detected; reserving 8192 MB for main workspace.
+--vcf: pop1maf002pca-temporary.bed + pop1maf002pca-temporary.bim +
+pop1maf002pca-temporary.fam written.
+58289 variants loaded from .bim file.
+500 people (0 males, 0 females, 500 ambiguous) loaded from .fam.
+Ambiguous sex IDs written to pop1maf002pca.nosex .
+Using up to 9 threads (change this with --threads).
+Before main variant filters, 500 founders and 0 nonfounders present.
+Calculating allele frequencies... done.
+Total genotyping rate is exactly 1.
+58289 variants and 500 people pass filters and QC.
+Note: No phenotypes present.
+Relationship matrix calculation complete.
+--pca: Results saved to pop1maf002pca.eigenval and pop1maf002pca.eigenvec .
+
+End time: Mon Oct 27 14:33:27 2025
